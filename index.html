@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Speed Alarm</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.css" />
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.js"></script>
+  </head>
+  <body>
+    <h1>Speed Alarm</h1>
+    <div style="margin-bottom: 3rem">
+      <div id="speedValue">Waiting for input</div>
+      <div id="speedCategory"></div>
+    </div>
+
+    <table id="myTable" class="display">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Speed</th>
+          <th>Category</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <script>
+      const socket = io();
+      let buttonStatus = 0;
+      let historyArray = [];
+      let speedHistory = JSON.parse(localStorage.getItem('speedHistory'));
+      if (speedHistory !== null) {
+        historyArray = speedHistory;
+      }
+
+      socket.on('data', function (data) {
+        const speedValue = parseFloat(data.split(/(\s+)/)[0]);
+
+        let speedCategory = '';
+        if (speedValue >= 60) {
+          speedCategory = 'Overspeeding';
+        } else if (speedValue < 60 && speedValue > 30) {
+          speedCategory = 'Normal speed';
+        } else if (speedValue >= 0 && speedValue <= 30) {
+          speedCategory = 'Slow as a turtle';
+        }
+
+        historyArray.push({
+          timestamp: Date.now(),
+          speedValue,
+          speedCategory,
+        });
+        localStorage.setItem('speedHistory', JSON.stringify(historyArray));
+        let table = $('#myTable').DataTable();
+        table.row
+          .add({
+            timestamp: historyArray[historyArray.length - 1].timestamp,
+            speedValue,
+            speedCategory,
+          })
+          .draw();
+
+        document.querySelector('#speedValue').innerText = `${speedValue} km/h`;
+        document.querySelector('#speedCategory').innerText = speedCategory;
+      });
+
+      let data = JSON.parse(localStorage.getItem('speedHistory'));
+      console.log(data);
+
+      $(document).ready(function () {
+        $('#myTable').DataTable({
+          searching: false,
+          data: data,
+          columns: [
+            { data: 'timestamp', render: DataTable.render.datetime() },
+            {
+              data: 'speedValue',
+              render: function (data, type, row) {
+                return data + 'km/h';
+              },
+            },
+            { data: 'speedCategory' },
+          ],
+          render: function (data, type, row) {
+            return '$' + data;
+          },
+        });
+      });
+    </script>
+  </body>
+</html>
